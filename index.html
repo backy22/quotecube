@@ -1,0 +1,184 @@
+<html>
+  <head>
+    <title>Quote Cube</title>
+    <style>
+      body { 
+        margin: 0;
+        font-family: 'Vollkorn', serif;
+        background: black;
+      }
+      #canvas0,#canvas1,#canvas2 {
+        display: none;
+      }
+      #quote {
+        position: absolute;
+        margin: 0 auto;
+        margin-top: 20px;
+        left: 0;
+        right: 0;
+        background-color: black;
+        color: white;
+        font-size: 30px;
+        text-align: center;
+        width: 80%;
+      }
+    </style>
+    <link href="https://fonts.googleapis.com/css?family=Vollkorn:700&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <canvas id="canvas0"></canvas>
+    <canvas id="canvas1"></canvas>
+    <canvas id="canvas2"></canvas>
+    <p id="quote"></p>
+    <script src="js/three.js"></script>
+    <script src="js/OrbitControls.js"></script>
+    <script src="js/threex.domevents.js"></script>
+    <script>
+      // Setup scene
+      const scene = new THREE.Scene();
+
+      // get a random quote
+      async function randomQuote() {
+        var data = [];
+        for (var i=0; i<3; i++){
+          var response = await fetch('https://api.quotable.io/random')
+          var _data = await response.json()
+          data.push(_data);
+        }
+        addTexture(data);
+      }
+
+      // generate canvas
+      var canvas = [];
+      var ctx = [];
+      for (var i=0; i<3; i++){
+        var _canvas = document.getElementById('canvas'+i+'');
+        canvas.push(_canvas);
+        var _ctx = _canvas.getContext('2d');
+        ctx.push(_ctx);
+      }
+
+      // draw canvas
+      function getCanvas(author,quote,i){
+        ctx[i].font = '35px Vollkorn';
+        ctx[i].beginPath();
+        ctx[i].rect(0, 0, canvas[i].width, canvas[i].height);
+        if (i==0){
+          ctx[i].fillStyle = '#feda77';
+        }else if(i==1){
+          ctx[i].fillStyle = '#dd2a7b';
+        }else{
+          ctx[i].fillStyle = '#8134af';
+        }
+        ctx[i].fill();
+
+        ctx[i].fillStyle = 'white';
+        ctx[i].textAlign = "center";
+        ctx[i].textBaseline = "middle";
+        ctx[i].fillText(author, canvas[i].width/2, canvas[i].height/2);
+      }
+
+      // Add cubes
+      var cube = [];
+      function addTexture(data) {
+        var geometry = new THREE.BoxGeometry( 120, 120, 120 );
+
+        for (var i=0; i<3; i++){
+          var author = data[i].author;
+          var quote = data[i].content;
+          getCanvas(author,quote,i);
+          var texture = new THREE.Texture(canvas[i])
+          texture.needsUpdate = true;
+
+          var material = new THREE.MeshLambertMaterial({ map: texture });
+          cube[i] = new THREE.Mesh(geometry, material);
+          cube[i].name = '"' + quote +'"' + ' - ' + author;
+          cube[i].position.x = -300;
+          cube[i].position.x = cube[i].position.x + i*300;
+          scene.add(cube[i])
+        }
+
+        animate();
+        mousedownEvent();
+      }
+
+      // Add spotlight
+      var light = new THREE.SpotLight(0xffffff, 1.5);
+      light.position.set(0, 200, 500);
+      scene.add(light);
+
+      // Setup camera
+      const camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 1, 1000 );
+      camera.position.z = 500;
+
+      // Render
+      const renderer = new THREE.WebGLRenderer();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+      renderer.render(scene, camera);
+
+      // Setup controls
+      const controls = new THREE.OrbitControls(camera,renderer.domElement)
+      controls.minDistance = 1
+      controls.maxDistance = 1000
+
+      // Animation
+      function animate() {
+        requestAnimationFrame( animate );
+          for (var i=0; i<3; i++){
+            cube[i].rotation.x += -0.01*i + 0.01;
+            cube[i].rotation.y += 0.01;
+            cube[i].rotation.z += 0.01;
+          }
+        controls.update()
+        renderer.render(scene, camera);
+      };
+
+      // Call readQuate function when mousedown to each cube
+      function mousedownEvent(){
+        var ua = navigator.userAgent
+        const domEvents = new THREEx.DomEvents(camera, renderer.domElement)
+
+        // if mobile
+        if (ua.indexOf('iPhone') > 0 || ua.indexOf('Android') > 0 ){
+          domEvents.addEventListener(cube[0], 'touchstart', event => {
+            readQuate(cube[0])
+          })
+          domEvents.addEventListener(cube[1], 'touchstart', event => {
+            readQuate(cube[1])
+          })
+          domEvents.addEventListener(cube[2], 'touchstart', event => {
+            readQuate(cube[2])
+          })
+        // if not mobile
+        }else{
+          domEvents.addEventListener(cube[0], 'mousedown', event => {
+            readQuate(cube[0])
+          })
+          domEvents.addEventListener(cube[1], 'mousedown', event => {
+            readQuate(cube[1])
+          })
+          domEvents.addEventListener(cube[2], 'mousedown', event => {
+            readQuate(cube[2])
+          })
+        }
+      }
+
+      // Web speech function
+      function readQuate(cube){
+        if (!speechSynthesis.speaking){
+          var utterance = new SpeechSynthesisUtterance();
+          utterance.text = cube.name;
+          var quote = document.getElementById('quote')
+          quote.innerHTML = cube.name;
+          utterance.pitch = 1;
+          utterance.rate = 1;
+          speechSynthesis.speak(utterance);
+        }
+      }
+
+      randomQuote();
+
+    </script>
+  </body>
+</html>
